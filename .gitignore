@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Python
+**/__pycache__/
+*.py[cod]
+apn/.venv/
+.venv/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime state and generated analysis
+apn/apn.sqlite3*
+apn/output/
+apn/tmp/
+tmp/
+*.log
+
+# Local archives and source media retained outside the curated demo dataset
+/Agentic_Perception_Network_v0.1.zip
+/People_shopping_in_supermarket_a2af0154.mp4
+/Shoppers_entering_supermarket_vi…_e27a4ce1.mp4
+
