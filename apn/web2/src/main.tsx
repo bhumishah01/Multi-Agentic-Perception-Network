@@ -740,11 +740,11 @@ function BusinessIntelligence() {
     <section className="businessBrief" id="business-intelligence">
       <header>
         <div>
-          <small>05 · BUSINESS OWNER VIEW</small>
-          <h2>What does the camera evidence mean for the business?</h2>
-          <p>Supermarket intelligence derived from the selected camera evidence.</p>
+          <small>05 · ANALYTICS OUTPUT CONTRACT</small>
+          <h2>Which signals are measured, inferred, or still blocked?</h2>
+          <p>Technical validation of the measures supplied to the manager workspace.</p>
         </div>
-        <span className="verticalBadge">SUPERMARKET · ACTIVE MODEL</span>
+        <span className="verticalBadge">SUPERMARKET · SIGNAL CONTRACT</span>
       </header>
       {!data ? <div className="businessLoading"><div className="loader" /> Translating evidence…</div> : <>
         <div className="businessLead">
@@ -1398,23 +1398,23 @@ function OwnerDashboard({ onTechnical, onExit }: { onTechnical: () => void; onEx
     { id: "journeys", label: "Customer journeys", hint: "Flow & lost opportunities" },
     { id: "planning", label: "Planning", hint: "Staff, comparisons & reports" },
   ];
-  return <main className="ownerApp">
+  return <main className="ownerApp ownerV3">
     <header className="ownerTopbar">
-      <div className="ownerBrand"><span>APN</span><div><b>Retail Intelligence</b><small>Camera-to-decision operating system</small></div></div>
-      <div className="ownerStore"><i /> Meridian Supermarket <small>· Evidence stream active</small></div>
+      <div className="ownerBrand"><span>M</span><div><b>Meridian Operations</b><small>Store intelligence by APN</small></div></div>
+      <div className="ownerStore"><i /> Wednesday, 27 November <small>· Store 01</small></div>
       <div className="notificationControl"><button aria-label="Open operational notifications" className="notificationBell" onClick={() => setNotificationsOpen(!notificationsOpen)}>◉<span>{activeAlerts.length}</span></button>{notificationsOpen && <div className="notificationPanel"><header><div><small>OPERATIONAL NOTIFICATIONS</small><b>What needs attention</b></div><button onClick={() => setNotificationsOpen(false)}>×</button></header>{activeAlerts.length ? activeAlerts.map(alert => <article key={alert.id} className={alert.level}><i/><div><small>{alert.level === "now" ? "ACT NOW" : alert.level === "tomorrow" ? "PLAN AHEAD" : "REVIEW"}</small><b>{alert.title}</b><p>{alert.detail}</p><em>{alert.source}</em><div><button onClick={() => {setActionedAlerts([...actionedAlerts, alert.id]); if(alert.id === "surge"){setWeekendPlanOpen(true);setNotificationsOpen(false);}}}>{actionedAlerts.includes(alert.id) ? "Action assigned ✓" : alert.action}</button><button onClick={() => setDismissedAlerts([...dismissedAlerts, alert.id])}>Dismiss</button></div></div></article>) : <p className="allClear">All operational alerts reviewed.</p>}</div>}</div>
-      <button onClick={onTechnical}>Open technical workspace</button>
+      <button className="technicalDoor" onClick={onTechnical}>Technical evidence ↗</button>
       <button className="quietButton" onClick={onExit}>Sign out</button>
     </header>
     <div className="ownerShell">
       <aside className="ownerSidebar">
-        <div><small>MANAGER WORKSPACE</small><b>Good afternoon, Bhumi</b><p>Wednesday · Store operating normally</p></div>
+        <div><small>STORE MANAGER</small><b>Good afternoon, Bhumi</b><p>Three decisions need your attention</p></div>
         <nav>{nav.map(item => <button key={item.id} className={section === item.id ? "active" : ""} onClick={() => setSection(item.id)}><span>{item.label}</span><small>{item.hint}</small></button>)}</nav>
-        <div className="ownerTruth"><b>Evidence status</b><span><i /> Camera-derived movement</span><span><i className="demo" /> Projected operating baseline</span><p>Sales and confirmed baskets require POS integration.</p></div>
+        <div className="ownerTruth"><b>Today’s brief</b><span><i /> Current footage reviewed</span><span><i className="demo" /> Forecast clearly labelled</span><p>Commercial results remain pending until POS is connected.</p></div>
       </aside>
       <section className="ownerContent">
         {activeAlerts.some(x => x.level === "now") && <div className="liveAlert"><span><i/> LIVE RECOMMENDATION</span><div><b>Customer may need assistance in Grocery Aisle 2</b><p>Three extended dwell signals were detected without visible staff engagement.</p></div><button onClick={() => { setActionedAlerts([...actionedAlerts,"assist"]); setDismissedAlerts([...dismissedAlerts,"assist"]); }}>Dispatch staff</button><button className="alertEvidence" onClick={() => setEvidence(evidenceItems[0])}>Evidence</button></div>}
-        <div className="ownerGuide"><div><small>YOUR WORKFLOW</small><b>Start with what needs attention. Open evidence only when you need to verify why.</b></div><ol><li><span>1</span>Review today</li><li><span>2</span>Understand the cause</li><li><span>3</span>Choose an action</li><li><span>4</span>Measure the result</li></ol><button onClick={onTechnical}>Inspect technical evidence</button></div>
+        <div className="decisionHorizon"><article className="now"><small>NOW</small><b>Support Grocery Aisle</b><p>Repeated hesitation is visible in the current replay.</p></article><article><small>NEXT SHIFT</small><b>Prepare checkout capacity</b><p>Use the queue trigger before opening another counter.</p></article><article><small>LEARN</small><b>Run one controlled placement test</b><p>Compare ease, congestion and abandonment—not assumptions.</p></article></div>
         {section === "overview" && <>
           <header className="ownerPageHead"><div><small>01 · EXECUTIVE BRIEF · UPDATED JUST NOW</small><h1>Your store, in one decision-ready view</h1><p>The current replay supports a checkout-pressure review. Forecast panels below are clearly marked planning scenarios.</p></div><button onClick={() => prepareReport(true)}>Generate owner brief</button></header>
           {reportStatus && <div className="ownerNotice">{reportStatus}</div>}

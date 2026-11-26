@@ -1,7 +1,7 @@
 import {test,expect,Page} from '@playwright/test';
 
 async function enterOwner(page:Page){await page.goto('/');await page.getByRole('button',{name:/Open Store Manager workspace/}).click()}
-async function enterTechnical(page:Page){await enterOwner(page);await page.getByRole('button',{name:'Open technical workspace'}).click()}
+async function enterTechnical(page:Page){await enterOwner(page);await page.getByRole('button',{name:/Technical evidence/}).click()}
 
 test('landing routes a manager into the business command centre',async({page})=>{await page.goto('/');await expect(page.getByText('Your store already sees everything.')).toBeVisible();await page.getByRole('button',{name:/Open Store Manager workspace/}).click();await expect(page.getByText('Your store, in one decision-ready view')).toBeVisible();await expect(page.getByText('Traffic today')).toBeVisible()});
 test('four owner workspaces expose all ten business capabilities',async({page})=>{await enterOwner(page);await page.getByRole('button',{name:/Store performance/}).click();await expect(page.getByText('03 · AISLE PERFORMANCE')).toBeVisible();await expect(page.getByText('05 · PLACEMENT DECISION STUDIO')).toBeVisible();await page.getByRole('button',{name:/Customer journeys/}).click();await expect(page.getByText('07 · LOST-OPPORTUNITY DETECTOR')).toBeVisible();await page.getByRole('button',{name:/Planning/}).click();await expect(page.getByText('10 · AUTOMATED OWNER REPORT')).toBeVisible()});
