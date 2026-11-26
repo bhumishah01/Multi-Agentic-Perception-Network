@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json,os,secrets
+import json,os,secrets,threading,time
 from pathlib import Path
 from typing import Any
 from fastapi import Depends,FastAPI,Header,HTTPException,WebSocket,WebSocketDisconnect,Query
@@ -18,6 +18,7 @@ from apn.security.retention import purge_expired_crops
 from apn.business import BusinessAnalytics,OperationsSimulator,build_report,build_showcase,approve_showcase
 from apn.evaluation import robustness_evaluation
 from apn.lab import SystemLab
+from tools.sync_supermarket_media import signature as media_signature,sync as sync_supermarket_media
 import cv2
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -27,10 +28,14 @@ TOKEN=os.environ.get("APN_TOKEN","apn-local-demo")
 OUTPUT=ROOT/"output"/"phase2_yolo"
 SCENARIO=ROOT/"output"/"scenario"/"state.json"
 MEDIA_CATALOG=ROOT/"data"/"supermarket_final"/"catalog.json"
+MEDIA_SOURCE=Path(os.environ.get("APN_MEDIA_SOURCE","/Volumes/One Touch/SURVELLIANCE /SUPERMARKET FINAL"))
 _initial_catalog=json.loads(MEDIA_CATALOG.read_text()) if MEDIA_CATALOG.exists() else {"reels":[]}
 CLOCK=ReplayClock(max((item.get("duration_s",0) for item in _initial_catalog.get("reels",[])),default=27.0))
 AGENT_STATES={f"camera-agent:{camera.id}":"running" for camera in CONFIG.cameras}
 STORE=RuntimeStore(Path(os.environ.get("APN_RUNTIME_DB",ROOT/"runtime.sqlite3")))
+MEDIA_LOCK=threading.Lock()
+MEDIA_LAST_SCAN=0.0
+MEDIA_SNAPSHOT:tuple=()
 
 
 def load_json(path:Path,default:Any):
@@ -54,7 +59,25 @@ def scenario():
  return recompute_entities(data,STORE.overrides())
 def analytics():return BusinessAnalytics(observations())
 def system_lab():return SystemLab(observations(),scenario(),load_json(OUTPUT/"summary.json",{}))
-def media_catalog():return load_json(MEDIA_CATALOG,{"clips":[],"reels":[],"discovered_files":0,"assigned_files":0,"unassigned_files":0})
+def _media_snapshot():
+ if not MEDIA_SOURCE.is_dir():return ()
+ suffixes={".mp4",".mov",".m4v",".avi",".mkv"}
+ return tuple(sorted((p.name,p.stat().st_size,p.stat().st_mtime_ns)for p in MEDIA_SOURCE.iterdir()if p.is_file()and not p.name.startswith((".","._"))and p.suffix.lower()in suffixes))
+
+def media_catalog():
+ global MEDIA_LAST_SCAN,MEDIA_SNAPSHOT
+ now=time.monotonic()
+ if now-MEDIA_LAST_SCAN>3 and MEDIA_LOCK.acquire(blocking=False):
+  try:
+   MEDIA_LAST_SCAN=now;snapshot=_media_snapshot()
+   if snapshot and snapshot!=MEDIA_SNAPSHOT:
+    MEDIA_SNAPSHOT=snapshot
+    current=load_json(MEDIA_CATALOG,{})
+    known={(x.get("filename"),x.get("clip_id"))for x in current.get("clips",[])}
+    present={(name,media_signature(MEDIA_SOURCE/name))for name,_,_ in snapshot}
+    if known!=present:sync_supermarket_media(MEDIA_SOURCE,ROOT)
+  finally:MEDIA_LOCK.release()
+ return load_json(MEDIA_CATALOG,{"clips":[],"reels":[],"discovered_files":0,"assigned_files":0,"unassigned_files":0})
 
 
 app=FastAPI(title="Agentic Perception Network",version="0.9.0",description="Local-only APN control and evidence API")
@@ -231,6 +254,16 @@ def video(camera_id:str,token:str=Query(default=""),authorization:str=Header(def
  camera=next((x for x in CONFIG.cameras if x.id==camera_id),None)
  if not camera:raise HTTPException(404,"camera not found")
  return FileResponse(ROOT/camera.file,media_type="video/mp4")
+
+@app.get("/api/source-video/{clip_id}")
+def source_video(clip_id:str,token:str=Query(default=""),authorization:str=Header(default=""),x_apn_role:str=Header(default="Security Operator")):
+ if authorization!=f"Bearer {TOKEN}" and token!=TOKEN:raise HTTPException(401,"valid local token required")
+ if not RBAC_ENGINE.allows(x_apn_role,"view_raw_video"):raise HTTPException(403,f"{x_apn_role} lacks view_raw_video")
+ clip=next((x for x in media_catalog().get("clips",[])if x.get("clip_id")==clip_id),None)
+ if not clip:raise HTTPException(404,"source clip not found")
+ target=Path(clip["source_path"]).resolve()
+ if MEDIA_SOURCE.resolve() not in target.parents or not target.is_file():raise HTTPException(403,"invalid source path")
+ return FileResponse(target,media_type="video/mp4")
 
 @app.get("/api/observations")
 def observation_feed(camera_id:str|None=None,role=Depends(role_guard("view_cases"))):

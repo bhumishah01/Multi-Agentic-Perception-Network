@@ -44,6 +44,7 @@ type MediaCatalog = {
   assigned_files: number;
   unassigned_files: number;
   disclosure: string;
+  clips: { clip_id:string; filename:string; camera_id:string|null; duration_s:number }[];
   reels: { camera_id: string; name: string; duration_s: number; clip_count: number; segments: any[] }[];
 };
 type AskResult = {
@@ -57,11 +58,13 @@ type AskResult = {
 };
 function Surveillance({
   camera,
+  sourceClip,
   observations,
   privacy,
   onTime,
 }: {
   camera: Camera;
+  sourceClip?: {clip_id:string;filename:string}|null;
   observations: Observation[];
   privacy: boolean;
   onTime: (n: number) => void;
@@ -75,7 +78,7 @@ function Surveillance({
     v.load();
     v.play().catch(() => {});
     setReady(false);
-  }, [camera.id]);
+  }, [camera.id, sourceClip?.clip_id]);
   useEffect(() => {
     let frame = 0;
     const paint = () => {
@@ -139,7 +142,7 @@ function Surveillance({
     <div className="surveillance">
       <video
         ref={video}
-        src={`/api/video/${camera.id}?token=${TOKEN}`}
+        src={sourceClip ? `/api/source-video/${sourceClip.clip_id}?token=${TOKEN}` : `/api/video/${camera.id}?token=${TOKEN}`}
         muted
         autoPlay
         loop
@@ -159,7 +162,7 @@ function Surveillance({
       <div className="videoStamp">
         <b>LIVE REPLAY</b>
         <span>
-          {camera.id} · {camera.name}
+          {sourceClip ? `${sourceClip.filename} · ${camera.name}` : `${camera.id} · ${camera.name}`}
         </span>
       </div>
       <div className="videoLegend">
@@ -1349,10 +1352,24 @@ function OwnerDashboard({ onTechnical, onExit }: { onTechnical: () => void; onEx
   const [selectedFunnel, setSelectedFunnel] = useState("Stopped");
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   const [actionedAlerts, setActionedAlerts] = useState<string[]>([]);
+  const [theme, setTheme] = useState<"light" | "dark">(() => localStorage.getItem("apn-owner-theme") === "dark" ? "dark" : "light");
+  const [toasts, setToasts] = useState<{id:number;title:string;detail:string;kind:string}[]>([]);
+  const mediaCount = useRef(0);
+  const pushToast = (title:string, detail:string, kind:"alert"|"media"|"success"="alert") => {
+    const id=Date.now()+Math.random(); setToasts(items=>[...items.slice(-2),{id,title,detail,kind}]);
+    window.setTimeout(()=>setToasts(items=>items.filter(x=>x.id!==id)),6500);
+  };
   useEffect(() => {
     Promise.all([api("/api/business/profile/supermarket"), api("/api/state")])
-      .then(([p, s]) => { setProfile(p); setState(s); });
+      .then(([p, s]) => { setProfile(p); setState(s); mediaCount.current=s.media?.discovered_files||0; window.setTimeout(()=>pushToast("Live change detected","Customer hesitation crossed the review threshold in Grocery Aisle 2."),900); });
   }, []);
+  useEffect(()=>{localStorage.setItem("apn-owner-theme",theme)},[theme]);
+  useEffect(()=>{
+    const timer=window.setInterval(()=>api("/api/media/catalog").then(media=>{
+      if(mediaCount.current && media.discovered_files!==mediaCount.current) pushToast("Surveillance library updated",`${media.discovered_files} clips are now indexed across ${media.reels?.length||0} camera roles.`,"media");
+      mediaCount.current=media.discovered_files; setState(current=>current?{...current,media}:current);
+    }).catch(()=>{}),5000); return()=>window.clearInterval(timer);
+  },[]);
   const maxTraffic = Math.max(...(profile?.comparison || []).map((x: any) => x.local_tracks), 1);
   const prepareReport = (openPlanning = false) => {
     setReportStatus("Preparing report from the current evidence ledger…");
@@ -1398,11 +1415,12 @@ function OwnerDashboard({ onTechnical, onExit }: { onTechnical: () => void; onEx
     { id: "journeys", label: "Customer journeys", hint: "Flow & lost opportunities" },
     { id: "planning", label: "Planning", hint: "Staff, comparisons & reports" },
   ];
-  return <main className="ownerApp ownerV3">
+  return <main className={`ownerApp ownerV3 ${theme === "dark" ? "ownerDark" : "ownerLight"}`}>
     <header className="ownerTopbar">
       <div className="ownerBrand"><span>M</span><div><b>Meridian Operations</b><small>Store intelligence by APN</small></div></div>
       <div className="ownerStore"><i /> Wednesday, 27 November <small>· Store 01</small></div>
       <div className="notificationControl"><button aria-label="Open operational notifications" className="notificationBell" onClick={() => setNotificationsOpen(!notificationsOpen)}>◉<span>{activeAlerts.length}</span></button>{notificationsOpen && <div className="notificationPanel"><header><div><small>OPERATIONAL NOTIFICATIONS</small><b>What needs attention</b></div><button onClick={() => setNotificationsOpen(false)}>×</button></header>{activeAlerts.length ? activeAlerts.map(alert => <article key={alert.id} className={alert.level}><i/><div><small>{alert.level === "now" ? "ACT NOW" : alert.level === "tomorrow" ? "PLAN AHEAD" : "REVIEW"}</small><b>{alert.title}</b><p>{alert.detail}</p><em>{alert.source}</em><div><button onClick={() => {setActionedAlerts([...actionedAlerts, alert.id]); if(alert.id === "surge"){setWeekendPlanOpen(true);setNotificationsOpen(false);}}}>{actionedAlerts.includes(alert.id) ? "Action assigned ✓" : alert.action}</button><button onClick={() => setDismissedAlerts([...dismissedAlerts, alert.id])}>Dismiss</button></div></div></article>) : <p className="allClear">All operational alerts reviewed.</p>}</div>}</div>
+      <button className="themeToggle" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} view`} onClick={()=>setTheme(theme === "light" ? "dark" : "light")}>{theme === "light" ? "◐ Dark" : "○ Light"}</button>
       <button className="technicalDoor" onClick={onTechnical}>Technical evidence ↗</button>
       <button className="quietButton" onClick={onExit}>Sign out</button>
     </header>
@@ -1424,6 +1442,7 @@ function OwnerDashboard({ onTechnical, onExit }: { onTechnical: () => void; onEx
             <article><small>BUSIEST ZONE</small><strong>{[...(profile?.comparison || [])].sort((a:any,b:any)=>b.local_tracks-a.local_tracks)[0]?.label || "—"}</strong><span>Measured from current footage</span></article>
             <article><small>CHECKOUT PRESSURE</small><strong>{counters === 2 ? "Elevated" : "Controlled"}</strong><span>{counters} active counters</span></article>
           </div>
+          <article className="mediaInventory"><header><div><small>SURVEILLANCE LIBRARY</small><h2>{state?.media?.discovered_files || 0} source clips · {state?.cameras?.length || 0} camera roles</h2></div><span>Auto-scans local folder every 5 seconds</span></header><p>The source videos are grouped into operational camera roles so continuous aisle reels can be analysed. Adding a video to the connected folder updates this inventory automatically.</p><div>{(state?.media?.clips || []).map((clip:any)=><span key={clip.clip_id}><b>{clip.filename}</b><small>{clip.camera_id || "Awaiting assignment"}</small></span>)}</div></article>
           <div className="ownerGrid overviewGrid">
             <article className="ownerCard trafficCard"><header><div><small>02 · RUSH FORECAST</small><h2>Traffic today</h2></div><span className="demoBadge">PROJECTED BASELINE</span></header><MiniLineChart /><footer><b>Forecast</b><span>92 visitors at 4 PM</span><p>Prepare one additional checkout counter by 3:45 PM.</p></footer></article>
             <article className="ownerCard actionCard"><header><div><small>DECISIONS THAT NEED ATTENTION</small><h2>Recommended now</h2></div><b>3</b></header>
@@ -1436,7 +1455,7 @@ function OwnerDashboard({ onTechnical, onExit }: { onTechnical: () => void; onEx
         </>}
 
         {section === "performance" && <>
-          <header className="ownerPageHead"><div><small>STORE & PRODUCT INTELLIGENCE</small><h1>Where attention becomes opportunity</h1><p>Compare zones, understand visible product interest and design measurable placement experiments.</p></div><span className="ownerPill">4 active camera zones</span></header>
+          <header className="ownerPageHead"><div><small>STORE & PRODUCT INTELLIGENCE</small><h1>Where attention becomes opportunity</h1><p>Compare zones, understand visible product interest and design measurable placement experiments.</p></div><span className="ownerPill">{state?.cameras?.length || 0} roles · {state?.media?.discovered_files || 0} clips</span></header>
           <div className="ownerGrid performanceGrid">
             <article className="ownerCard aisleCard"><header><div><small>03 · AISLE PERFORMANCE</small><h2>Zone comparison</h2></div><span>Current footage</span></header><div className="aisleTable">
               {(profile?.comparison || []).map((item: any, index: number) => <section key={item.camera_id}><div><b>{item.label}</b><small>{item.camera_id}</small></div><strong>{item.local_tracks}</strong><div className="ownerBar"><i style={{width: `${item.local_tracks / maxTraffic * 100}%`}} /></div><span>{index === 0 ? "High flow" : index === 1 ? "Engagement opportunity" : index === 3 ? "Pressure watch" : "Stable"}</span></section>)}
@@ -1467,6 +1486,7 @@ function OwnerDashboard({ onTechnical, onExit }: { onTechnical: () => void; onEx
           </div>
         </>}
         {evidence && <div className="ownerModal" role="dialog" aria-label="Evidence review"><div className="modalCard"><header><div><small>CAMERA EVIDENCE REVIEW</small><h2>{evidence.t}</h2></div><button onClick={() => setEvidence(null)}>×</button></header><div className="evidenceSource"><span><b>{evidence.camera}</b> source camera</span><span><b>{evidence.window}</b> evidence window</span><span><b>{evidence.n}</b> detected signals</span></div><section><small>OBSERVED BY THE CAMERA PIPELINE</small><p>{evidence.observed}</p></section><section><small>BUSINESS INTERPRETATION</small><p>{evidence.inference}</p></section><aside>Privacy-safe evidence uses anonymous local track IDs. No face identity is stored or claimed.</aside><footer><button onClick={() => setEvidence(null)}>Close</button><button onClick={onTechnical}>Open technical evidence workspace</button></footer></div></div>}
+        <div className="toastStack" aria-live="polite">{toasts.map(toast=><article key={toast.id} className={toast.kind}><i/><div><small>{toast.kind === "media" ? "MEDIA UPDATE" : "LIVE CHANGE"}</small><b>{toast.title}</b><p>{toast.detail}</p></div><button aria-label="Dismiss notification" onClick={()=>setToasts(items=>items.filter(x=>x.id!==toast.id))}>×</button></article>)}</div>
         {weekendPlanOpen && <div className="ownerModal" role="dialog" aria-label="Weekend operating plan"><div className="modalCard weekendPlan"><header><div><small>WEEKEND OPERATING PLAN</small><h2>A practical plan your team can use</h2><p>Built from the projected weekend profile and current checkout review cue.</p></div><button onClick={() => setWeekendPlanOpen(false)}>×</button></header><div className="planSummary"><span><small>PLAN WINDOW</small><b>Saturday · 3:30–6:00 PM</b></span><span><small>PRIMARY RISK</small><b>Checkout and aisle congestion</b></span><span><small>OWNER</small><b>Shift manager</b></span></div><div className="planTimeline"><article><time>Before 3:30</time><div><b>Prepare capacity</b><p>Brief one flexible employee, confirm Counter 3 readiness and clear trolley obstructions.</p></div><span>Manager</span></article><article><time>3:45 PM</time><div><b>Open Counter 3 if queue threshold is reached</b><p>Trigger only when four or more visible tracks persist across the review window.</p></div><span>Checkout lead</span></article><article><time>4:00–5:15</time><div><b>Place assistance near Grocery</b><p>Respond to repeated hesitation while keeping the aisle route clear.</p></div><span>Floor lead</span></article><article><time>After 6:00</time><div><b>Close the learning loop</b><p>Compare queue pressure, assistance signals and congestion against the previous window.</p></div><span>APN report</span></article></div><aside><b>Success measures</b><span>Lower pressure frames</span><span>Shorter visible hesitation</span><span>No increase in blocked access</span></aside><footer><button onClick={() => setWeekendPlanOpen(false)}>Close</button><button onClick={() => {setSection("planning");setWeekendPlanOpen(false);}}>Review planning metrics</button></footer></div></div>}
         {experiment !== "closed" && <div className="ownerModal" role="dialog" aria-label="A/B placement experiment"><div className="modalCard experimentModal"><header><div><small>SCENARIO-AWARE PLACEMENT ENGINE</small><h2>When should products be together or apart?</h2></div><button onClick={() => setExperiment("closed")}>×</button></header><div className="scenarioTabs">{(Object.keys(scenarioModels) as Array<keyof typeof scenarioModels>).map(key => <button key={key} className={scenario === key ? "active" : ""} onClick={() => { setScenario(key); setExperiment("design"); }}><b>{scenarioModels[key].label}</b><small>{scenarioModels[key].crowd} crowd · {scenarioModels[key].mission}</small></button>)}</div>{experiment === "design" ? <><div className="scenarioContext"><span><small>EXPECTED CROWD</small><b>{activeScenario.crowd}</b></span><span><small>SHOPPING MISSION</small><b>{activeScenario.mission}</b></span><span><small>DECISION RULE</small><b>Crowding + mission + friction</b></span></div><div className="variantGrid"><article><small>VARIANT A</small><b>Complementary placement</b><p>Bread, butter and spreads placed together for speed and convenience.</p></article><article><small>VARIANT B</small><b>Discovery route</b><p>Categories separated across a measured route to increase discovery.</p></article></div><section><small>SUCCESS MEASURES</small><p>Search time · route friction · congestion · category discovery · abandonment · POS basket value when connected</p></section><aside>The engine uses explicit rules for this scenario. It does not randomly choose a variant or rearrange the physical store.</aside><footer><button onClick={() => setExperiment("closed")}>Cancel</button><button onClick={() => setExperiment("result")}>Evaluate this scenario</button></footer></> : <><div className={`experimentResult winner${activeScenario.winner}`}><small>RECOMMENDATION FOR {activeScenario.label.toUpperCase()}</small><strong>{activeScenario.winner === "C" ? "Occasion strategy" : `Variant ${activeScenario.winner}`}</strong><span>{activeScenario.title}</span><p>{activeScenario.explanation}</p></div><div className="scenarioScores"><header><b>Why this result changes</b><span>Projected decision indices</span></header>{["Customer ease","Congestion control","Discovery potential","Overall fit"].map((label,index) => <section key={label}><b>{label}</b><div><span>A</span><i style={{width:`${activeScenario.a[index]}%`}}/><em>{activeScenario.a[index]}</em></div><div><span>B</span><i className="b" style={{width:`${activeScenario.b[index]}%`}}/><em>{activeScenario.b[index]}</em></div></section>)}</div><div className="scenarioAction"><small>RECOMMENDED PILOT</small><b>{activeScenario.action}</b></div><footer><button onClick={() => setExperiment("design")}>Change scenario</button><button onClick={() => setExperiment("closed")}>Save pilot plan</button></footer></>}</div></div>}
       </section>
@@ -1476,8 +1496,9 @@ function OwnerDashboard({ onTechnical, onExit }: { onTechnical: () => void; onEx
 
 function Landing({ onEnter }: { onEnter: () => void }) {
   const [role, setRole] = useState("Store Manager");
-  return <main className="apnLanding">
-    <nav><div className="landingBrand"><span>APN</span><b>Agentic Perception Network</b></div><small>SUPERMARKET INTELLIGENCE · PRIVATE VALIDATION ENVIRONMENT</small></nav>
+  const [dark,setDark]=useState(false);
+  return <main className={`apnLanding landingV2 ${dark?"landingDark":"landingLight"}`}>
+    <nav><div className="landingBrand"><span>M</span><div><b>Meridian Intelligence</b><small>Powered by Agentic Perception Network</small></div></div><div className="landingNavMeta"><small>SUPERMARKET · STORE 01</small><button aria-label={`Switch landing to ${dark?"light":"dark"} view`} onClick={()=>setDark(!dark)}>{dark?"○ Light":"◐ Dark"}</button></div></nav>
     <section className="landingHero">
       <div className="landingCopy"><small>THE CAMERA-TO-DECISION OPERATING SYSTEM</small><h1>Your store already sees everything.<br/><em>Now it can understand.</em></h1><p>APN turns privacy-protected camera evidence into rush forecasts, aisle intelligence, customer-journey findings and decisions your team can act on.</p><div className="landingSignals"><span><i /> Anonymous movement</span><span><i /> Multi-agent reasoning</span><span><i /> Human-controlled action</span></div></div>
       <form className="accessCard" onSubmit={e => { e.preventDefault(); onEnter(); }}><small>SECURE WORKSPACE ACCESS</small><h2>Enter Meridian Supermarket</h2><p>Choose your role to open the appropriate intelligence workspace.</p><label>Work email<input type="email" defaultValue="manager@meridian.local" required /></label><label>Role<select value={role} onChange={e => setRole(e.target.value)}><option>Store Manager</option><option>Operations Lead</option><option>Technical Reviewer</option></select></label><label>Password<input type="password" defaultValue="apn-local" required /></label><button type="submit">Open {role} workspace <span>→</span></button><aside><i /> Local validation workspace · no external data is transmitted</aside></form>
@@ -1489,14 +1510,16 @@ function Landing({ onEnter }: { onEnter: () => void }) {
 function ProductPortal() {
   const [entered, setEntered] = useState(false);
   const [workspace, setWorkspace] = useState<"owner" | "technical">("owner");
+  const [technicalDark,setTechnicalDark]=useState(true);
   if (!entered) return <Landing onEnter={() => setEntered(true)} />;
   if (workspace === "owner") return <OwnerDashboard onTechnical={() => setWorkspace("technical")} onExit={() => setEntered(false)} />;
-  return <div className="technicalPortal"><nav className="portalReturn"><button onClick={() => setWorkspace("owner")}>← Business owner workspace</button><span>TECHNICAL & EVIDENCE WORKSPACE</span></nav><App /></div>;
+  return <div className={`technicalPortal technicalV2 ${technicalDark?"technicalDark":"technicalLight"}`}><nav className="portalReturn"><button onClick={() => setWorkspace("owner")}>← Manager workspace</button><b>APN EVIDENCE LAB</b><div><span>TECHNICAL WORKSPACE</span><button aria-label={`Switch technical workspace to ${technicalDark?"light":"dark"} view`} onClick={()=>setTechnicalDark(!technicalDark)}>{technicalDark?"○ Light":"◐ Dark"}</button></div></nav><App /></div>;
 }
 function App() {
   const [state, setState] = useState<State | null>(null),
     [observations, setObservations] = useState<Observation[]>([]),
     [cameraId, setCameraId] = useState("CAM-02"),
+    [sourceClipId, setSourceClipId] = useState<string | null>(null),
     [privacy, setPrivacy] = useState(true),
     [query, setQuery] = useState(
       "Why did checkout pressure increase and what should we do?",
@@ -1516,6 +1539,7 @@ function App() {
       .catch((e) => setError(e.message));
   }, []);
   const camera = state?.cameras.find((c) => c.id === cameraId),
+    sourceClip = state?.media?.clips?.find((clip) => clip.clip_id === sourceClipId),
     cameraRows = useMemo(
       () => observations.filter((row) => row.camera_id === cameraId),
       [observations, cameraId],
@@ -1587,7 +1611,7 @@ function App() {
         state={state}
         observations={observations}
         selected={cameraId}
-        onSelect={setCameraId}
+        onSelect={(id)=>{setCameraId(id);setSourceClipId(null)}}
       />
       <MediaProvenance catalog={state.media} />
       <section className="workspace" id="workspace">
@@ -1609,7 +1633,7 @@ function App() {
               <button
                 key={c.id}
                 className={cameraId === c.id ? "selected" : ""}
-                onClick={() => setCameraId(c.id)}
+                onClick={() => {setCameraId(c.id);setSourceClipId(null)}}
               >
                 <i />
                 <span>
@@ -1620,9 +1644,12 @@ function App() {
               </button>
             ))}
           </div>
+          <div className="sourceFeedHeader"><div><small>ALL DISCOVERED SURVEILLANCE</small><b>{state.media.clips.length} source feeds available</b></div><span>Choose any clip · grouped analysis remains by camera role</span></div>
+          <div className="sourceFeedGrid">{state.media.clips.map((clip,index)=><button key={clip.clip_id} className={sourceClipId===clip.clip_id?"selected":""} onClick={()=>{setSourceClipId(clip.clip_id);if(clip.camera_id)setCameraId(clip.camera_id)}}><i>{String(index+1).padStart(2,"0")}</i><span><b>{clip.filename}</b><small>{clip.camera_id||"Unassigned"}</small></span></button>)}</div>
           <Surveillance
-            key={camera.id}
+            key={`${camera.id}-${sourceClipId||"reel"}`}
             camera={camera}
+            sourceClip={sourceClip}
             observations={cameraRows}
             privacy={privacy}
             onTime={setTime}
