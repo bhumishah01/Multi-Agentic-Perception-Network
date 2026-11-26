@@ -1,0 +1,7 @@
+{
+  "Administrator": ["view_raw_video","view_masked_video","view_cases","decide","adjust_thresholds","manage_agents","view_audit","export"],
+  "Security Operator": ["view_raw_video","view_masked_video","view_cases","decide","view_audit","export"],
+  "Business Operations": ["view_masked_video","view_cases"],
+  "Investigator": ["view_raw_video","view_masked_video","view_cases","decide","view_audit","export"],
+  "Auditor": ["view_cases","view_audit","export"]
+}

@@ -7,6 +7,10 @@
 *.py[cod]
 apn/.venv/
 .venv/
+**/node_modules/
+apn/web2/dist/
+apn/web2/test-results/
+*.tsbuildinfo
 
 # Local configuration and secrets
 .env
@@ -15,13 +19,21 @@ apn/.venv/
 
 # Runtime state and generated analysis
 apn/apn.sqlite3*
+apn/runtime.sqlite3*
+apn/config/calibration/*.json
 apn/output/
 apn/tmp/
+apn/data/supermarket_final/
+apn/data/inspect/
 tmp/
 *.log
+*.pt
+
+# Local review, generated evidence, and non-product working artifacts
+/work/
+/retail/
 
 # Local archives and source media retained outside the curated demo dataset
 /Agentic_Perception_Network_v0.1.zip
 /People_shopping_in_supermarket_a2af0154.mp4
 /Shoppers_entering_supermarket_vi…_e27a4ce1.mp4
-

@@ -1,0 +1,50 @@
+{
+  "dataset": "COMPOSED; integration test, not benchmark",
+  "A_hog_hsv_baseline": {
+    "observation_count": 200,
+    "IDF1": null,
+    "ID_switches": null,
+    "handoff_metrics": null,
+    "reason": "HOG tracks are not hand-labelled densely enough for valid IDF1 or handoff scoring."
+  },
+  "B_yolo_bytetrack_hsv": {
+    "observation_count": 664,
+    "IDF1": null,
+    "ID_switches": null,
+    "handoff_metrics": {
+      "known_links": 2,
+      "predicted_positive_links": 3,
+      "precision": 0.0,
+      "recall": 0.0,
+      "false_merge_rate": 1.0
+    },
+    "reason": "Only two known cross-segment links; report is an integration sanity check."
+  },
+  "C_full_negotiation": {
+    "handoff_metrics_strict_accept": {
+      "known_links": 2,
+      "predicted_positive_links": 0,
+      "precision": null,
+      "recall": 0.0,
+      "false_merge_rate": 0.0
+    },
+    "handoff_metrics_human_review_inclusive": {
+      "known_links": 2,
+      "predicted_positive_links": 3,
+      "precision": 0.0,
+      "recall": 0.0,
+      "false_merge_rate": 1.0
+    },
+    "states": [
+      "ambiguous",
+      "ambiguous",
+      "ambiguous"
+    ]
+  },
+  "limitations": [
+    "CAM-01\u2192CAM-02 ground truth is unknown.",
+    "No dense frame-level identity labels exist.",
+    "Clips are composed and too small for statistical claims.",
+    "Scores are heuristic, not calibrated probabilities."
+  ]
+}

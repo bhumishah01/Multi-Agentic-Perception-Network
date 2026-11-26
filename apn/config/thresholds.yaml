@@ -1,0 +1,13 @@
+{
+  "detector": {"conf": 0.35, "imgsz": 960, "process_every_n_frames": 2},
+  "tracking": {"track_buffer_s": 3.0},
+  "dwell_s": {"Shelves": 20, "Main Aisle": 30, "Service Counter": 45, "Checkout": 60, "Entrance": 15},
+  "loiter": {"window_s": 30, "max_displacement_m": 1.5},
+  "handoff": {
+    "weights": {"appearance": 0.45, "temporal": 0.20, "spatial": 0.15, "topology": 0.10, "exclusivity": 0.10},
+    "T_accept": 0.80, "M_accept": 0.10, "T_ambiguous": 0.62, "max_transit_s": 20
+  },
+  "queue": {"queue_len_alert": 4, "wait_alert_s": 90},
+  "health": {"frozen_s": 3, "brightness_drop": 0.5, "heartbeat_timeout_s": 5},
+  "privacy": {"mode": "masked", "crop_retention_hours": 24}
+}

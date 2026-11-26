@@ -1,0 +1,21 @@
+{
+  "units": "map",
+  "width": 1200,
+  "height": 520,
+  "approximate": true,
+  "zones": [
+    {"name": "Entrance", "risk": 0.2, "points": [[20,120],[250,120],[250,400],[20,400]]},
+    {"name": "Main Aisle", "risk": 0.2, "points": [[250,80],[560,80],[560,440],[250,440]]},
+    {"name": "Shelves", "risk": 0.3, "points": [[300,120],[500,120],[500,400],[300,400]]},
+    {"name": "Service Counter", "risk": 0.4, "points": [[560,90],[850,90],[850,430],[560,430]]},
+    {"name": "Checkout", "risk": 0.5, "points": [[850,90],[1080,90],[1080,430],[850,430]]},
+    {"name": "Exit", "risk": 0.2, "points": [[1080,120],[1180,120],[1180,400],[1080,400]]},
+    {"name": "Restricted", "risk": 1.0, "points": [[650,20],[830,20],[830,90],[650,90]]}
+  ],
+  "cameras": [
+    {"id":"CAM-01","position":[110,470],"heading_deg":-90,"fov_deg":72},
+    {"id":"CAM-02","position":[400,470],"heading_deg":-90,"fov_deg":65},
+    {"id":"CAM-03","position":[700,470],"heading_deg":-90,"fov_deg":75},
+    {"id":"CAM-04","position":[960,470],"heading_deg":-90,"fov_deg":70}
+  ]
+}

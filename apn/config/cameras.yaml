@@ -1,0 +1,53 @@
+{
+  "mode": "COMPOSED",
+  "store_clock_start": "2026-01-01T10:00:00",
+  "cameras": [
+    {
+      "id": "CAM-01",
+      "name": "Entrance & Produce",
+      "file": "data/supermarket_final/reels/cam-01.mp4",
+      "clock_offset_s": 0.0,
+      "zones_px": "config/zones/cam1.json",
+      "homography": "config/calib/cam1.json",
+      "neighbours": ["CAM-02"],
+      "edges": [{"side": "right", "leads_to": "CAM-02"}]
+    },
+    {
+      "id": "CAM-02",
+      "name": "Grocery Aisles",
+      "file": "data/supermarket_final/reels/cam-02.mp4",
+      "clock_offset_s": 15.0,
+      "zones_px": "config/zones/cam2.json",
+      "homography": "config/calib/cam2.json",
+      "neighbours": ["CAM-01", "CAM-03"],
+      "edges": [
+        {"side": "left", "leads_to": "CAM-01"},
+        {"side": "right", "leads_to": "CAM-03"}
+      ]
+    },
+    {
+      "id": "CAM-03",
+      "name": "Promotions & Assistance",
+      "file": "data/supermarket_final/reels/cam-03.mp4",
+      "clock_offset_s": 18.958,
+      "zones_px": "config/zones/cam3.json",
+      "homography": "config/calib/cam3.json",
+      "neighbours": ["CAM-02", "CAM-04"],
+      "edges": [
+        {"side": "left", "leads_to": "CAM-02"},
+        {"side": "right", "leads_to": "CAM-04"}
+      ]
+    },
+    {
+      "id": "CAM-04",
+      "name": "Checkout",
+      "file": "data/supermarket_final/reels/cam-04.mp4",
+      "clock_offset_s": 21.958,
+      "zones_px": "config/zones/cam4.json",
+      "homography": "config/calib/cam4.json",
+      "neighbours": ["CAM-03"],
+      "edges": [{"side": "left", "leads_to": "CAM-03"}]
+    }
+  ],
+  "floorplan": "config/floorplan.json"
+}

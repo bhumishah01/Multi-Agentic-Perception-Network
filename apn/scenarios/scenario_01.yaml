@@ -1,0 +1,20 @@
+{
+  "id": "scenario_01",
+  "mode": "COMPOSED",
+  "label": "COMPOSED TIMELINE — clips aligned manually",
+  "target": "anonymous entrance-track candidate propagated by autonomous ranking",
+  "expected": {
+    "camera_order": ["CAM-01", "CAM-02", "CAM-03", "CAM-04"],
+    "handoff_states": ["ambiguous", "ambiguous", "ambiguous"],
+    "case_kind": "checkout_bottleneck",
+    "minimum_messages": 10,
+    "minimum_case_cameras": 3,
+    "attack_demo": ["forged_observation_rejected", "frozen_feed_detected", "replayed_clip_detected"]
+  },
+  "truth_boundary": {
+    "CAM-01_to_CAM-02": "unknown; separate generated clips",
+    "CAM-02_to_CAM-03": "reference identity exists, but autonomous top-ranked link is not assumed to be it",
+    "CAM-03_to_CAM-04": "reference identity exists, but autonomous top-ranked link is not assumed to be it",
+    "dwell": "not asserted; clips are too short"
+  }
+}

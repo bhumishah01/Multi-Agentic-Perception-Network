@@ -1,0 +1,8 @@
+{
+  "dataset": "composed_store_v1",
+  "links": [
+    {"source":"CAM-01:T-0003","target":"CAM-02:T-0003","truth":"unknown","reason":"separate generated clips"},
+    {"source":"CAM-02:T-0003","target":"CAM-03:T-0006","truth":"same","reason":"contiguous source chronology and visible target"},
+    {"source":"CAM-03:T-0006","target":"CAM-04:T-0005","truth":"same","reason":"contiguous source chronology and visible target"}
+  ]
+}

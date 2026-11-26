@@ -1,0 +1,5 @@
+# Ultralytics is AGPL-3.0; see README before distribution or hosted deployment.
+pydantic>=2.10,<3
+opencv-python>=4.10,<5
+ultralytics>=8.3,<9
+lap>=0.5.12,<1
