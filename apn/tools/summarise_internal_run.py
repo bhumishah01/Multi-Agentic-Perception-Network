@@ -13,7 +13,7 @@ def main() -> None:
     summary = json.loads((args.run / "summary.json").read_text())
     print("\nAPN INTERNAL DEMONSTRATION")
     print("=" * 42)
-    print(f"Timeline:       {summary['mode']} (dummy validation footage)")
+    print(f"Timeline:       {summary['mode']} (controlled validation footage)")
     print(f"Detector:       {summary['detector']}")
     print(f"Tracker:        {summary['tracker']}")
     print(f"Embedding:      {summary['embedding']}")

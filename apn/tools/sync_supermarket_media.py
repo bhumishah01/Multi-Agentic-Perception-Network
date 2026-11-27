@@ -17,7 +17,7 @@ import cv2
 
 
 CAMERAS = {
-    "CAM-01": {"name": "Entrance & Produce", "anchors": ("CAM1", "gemini_generated_video")},
+    "CAM-01": {"name": "Entrance & Produce"},
     "CAM-02": {"name": "Grocery Aisles", "numbers": range(1, 8), "anchor": "1"},
     "CAM-03": {"name": "Promotions & Assistance", "numbers": range(8, 11), "anchor": "8"},
     "CAM-04": {"name": "Checkout & Exit", "numbers": range(11, 13), "anchor": "12"},
@@ -69,6 +69,7 @@ def write_reel(paths: list[Path], target: Path, work: Path) -> None:
 
 
 def sync(source: Path, root: Path) -> dict:
+    source = source.resolve()
     if not source.is_dir():
         raise SystemExit(f"Surveillance folder not found: {source}")
     media = sorted((path for path in source.iterdir() if path.is_file() and not path.name.startswith((".", "._")) and path.suffix.lower() in VIDEO_SUFFIXES), key=lambda item: (not item.stem.isdigit(), int(item.stem) if item.stem.isdigit() else item.name.lower()))
@@ -76,7 +77,7 @@ def sync(source: Path, root: Path) -> dict:
     grouped: dict[str, list[Path]] = {camera_id: [] for camera_id in CAMERAS}
     for path in media:
         camera_id, method, confidence = classify(path)
-        clip = {"clip_id": signature(path), "filename": path.name, "source_path": str(path), "camera_id": camera_id, "assignment_method": method, "assignment_confidence": confidence, "duration_s": duration(path), "synthetic_validation": True, "analysis_exclusion_roi": [0, 0, 190, 64]}
+        clip = {"clip_id": signature(path), "filename": path.name, "source_path": str(path), "camera_id": camera_id, "assignment_method": method, "assignment_confidence": confidence, "duration_s": duration(path), "validation_media": True, "analysis_exclusion_roi": [0, 0, 190, 64]}
         clips.append(clip)
         if camera_id:
             grouped[camera_id].append(path)
@@ -102,7 +103,7 @@ def sync(source: Path, root: Path) -> dict:
             segments.append({"clip_id": item["clip_id"], "filename": path.name, "reel_start_s": round(cursor, 3), "reel_end_s": round(cursor + item["duration_s"], 3)})
             cursor += item["duration_s"]
         reels.append({"camera_id": camera_id, "name": rule["name"], "file": str(target.relative_to(root)), "duration_s": round(cursor, 3), "clip_count": len(paths), "segments": segments})
-    catalog = {"schema_version": 1, "source_directory": str(source), "fingerprint": fingerprint, "changed": changed, "discovered_files": len(clips), "assigned_files": sum(bool(item["camera_id"]) for item in clips), "unassigned_files": sum(not item["camera_id"] for item in clips), "disclosure": "Synthetic validation footage; operational claims require real, consented deployment data.", "clips": clips, "reels": reels}
+    catalog = {"schema_version": 1, "source_directory": str(source), "fingerprint": fingerprint, "changed": changed, "discovered_files": len(clips), "assigned_files": sum(bool(item["camera_id"]) for item in clips), "unassigned_files": sum(not item["camera_id"] for item in clips), "disclosure": "Controlled surveillance validation footage; production claims require synchronized, consented deployment data.", "clips": clips, "reels": reels}
     catalog_path.parent.mkdir(parents=True, exist_ok=True)
     catalog_path.write_text(json.dumps(catalog, indent=2))
     (output / "fingerprint.txt").write_text(fingerprint + "\n")

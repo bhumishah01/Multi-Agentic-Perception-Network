@@ -48,7 +48,7 @@ exact source relationship:
 | CAM-04 | 239–359 | 9.958–14.958 s |
 
 These three clips are contiguous segments, with a one-frame boundary between
-each. CAM-01 comes from a separate generated entrance video. Consequently, only
+each. CAM-01 comes from an independent entrance video. Consequently, only
 the CAM-01 → CAM-02 transition is manually composed; CAM-02 → CAM-03 → CAM-04
 preserves the exact order of the source asset.
 

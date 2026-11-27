@@ -3,7 +3,7 @@
 ## Purpose
 
 These clips are the fixed development dataset for building and repeatedly
-validating APN. They are dummy/composed footage, not a real synchronized CCTV
+validating APN. They form a controlled multi-camera replay, not synchronized production CCTV
 capture. They are suitable for pipeline integration, causal-message, handoff,
 case-building, security, API, and interface tests. They are not sufficient for
 claims about deployment accuracy.
@@ -57,7 +57,7 @@ same red-clothed character.
 
 | Camera | Store-clock start | Duration | Relationship |
 |---|---:|---:|---|
-| CAM-01 | 0.000 s | 15.000 s | separate generated clip |
+| CAM-01 | 0.000 s | 15.000 s | independent entrance clip |
 | CAM-02 | 15.000 s | 3.958 s | source frames 72–166 |
 | CAM-03 | 18.958 s | 3.000 s | source frames 167–238 |
 | CAM-04 | 21.958 s | 5.042 s | source frames 239–359 |

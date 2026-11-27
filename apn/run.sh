@@ -14,15 +14,18 @@ echo "[APN] validating core"
 "$PYTHON" -m unittest discover -s tests -v
 
 echo "[APN] discovering supermarket footage and assembling camera reels"
+EXTERNAL_MEDIA="${APN_MEDIA_SOURCE:-/Volumes/One Touch/SURVELLIANCE /SUPERMARKET FINAL}"
+if [[ -d "$EXTERNAL_MEDIA" ]]; then
+  export APN_MEDIA_SOURCE="$EXTERNAL_MEDIA"
+else
+  export APN_MEDIA_SOURCE="$(pwd)/data/realistic_store_v1/videos"
+  echo "[APN] external surveillance drive is unavailable — using the bundled validation pack"
+fi
 PREVIOUS_MEDIA=""
 if [[ -f output/phase2_yolo/media_fingerprint.txt ]]; then
   PREVIOUS_MEDIA="$(tr -d '\n' < output/phase2_yolo/media_fingerprint.txt)"
 fi
-if [[ -d "/Volumes/One Touch/SURVELLIANCE /SUPERMARKET FINAL" ]]; then
-  "$PYTHON" tools/sync_supermarket_media.py
-else
-  echo "[APN] external surveillance drive is disconnected — using cached camera reels"
-fi
+"$PYTHON" tools/sync_supermarket_media.py --source "$APN_MEDIA_SOURCE"
 CURRENT_MEDIA="$(tr -d '\n' < data/supermarket_final/fingerprint.txt)"
 
 if [[ ! -f output/phase2_yolo/summary.json || "$PREVIOUS_MEDIA" != "$CURRENT_MEDIA" ]]; then

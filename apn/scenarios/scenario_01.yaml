@@ -12,7 +12,7 @@
     "attack_demo": ["forged_observation_rejected", "frozen_feed_detected", "replayed_clip_detected"]
   },
   "truth_boundary": {
-    "CAM-01_to_CAM-02": "unknown; separate generated clips",
+    "CAM-01_to_CAM-02": "unknown; independent source clips",
     "CAM-02_to_CAM-03": "reference identity exists, but autonomous top-ranked link is not assumed to be it",
     "CAM-03_to_CAM-04": "reference identity exists, but autonomous top-ranked link is not assumed to be it",
     "dwell": "not asserted; clips are too short"

@@ -2,7 +2,7 @@
 
 The fixed dataset is a 27-second composed four-stage supermarket story. CAM-02,
 CAM-03, and CAM-04 are contiguous segments from one source video. CAM-01 is a
-separate generated clip. Therefore results validate integration, not real CCTV
+independent source clip. Therefore results validate integration, not synchronized CCTV
 cross-camera accuracy.
 
 Measured pipeline runs:

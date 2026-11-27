@@ -359,7 +359,7 @@ function StoreOverview({
           <h2>One supermarket, four evidence zones</h2>
           <p>Select a sector to move from the whole-store picture into its camera evidence.</p>
         </div>
-        <div className="storeStatus"><i /> COMPOSED VALIDATION STORE</div>
+        <div className="storeStatus"><i /> VALIDATION DATASET ACTIVE</div>
       </header>
       <div className="storeKpis">
         <span><b>{state.cameras.length}</b> connected camera roles</span>
@@ -674,7 +674,7 @@ function InvestigationTheatre() {
               <button onClick={approve} disabled={!!approval}>
                 {approval ? "Pilot approved" : "Approve staged pilot"}
               </button>
-              <p>No external action is triggered by this demonstration.</p>
+              <p>No external action is triggered by this validation run.</p>
             </div>
             <div className={`verification ${approval ? "revealed" : ""}`}>
               <small>
@@ -1574,7 +1574,7 @@ function App() {
           <p>Ask the space. Watch the agents investigate.</p>
         </div>
         <span className="dataset">
-          COMPOSED VIDEO TEST · {state.summary.observations} OBSERVATIONS
+          CONTROLLED SURVEILLANCE RUN · {state.summary.observations} OBSERVATIONS
         </span>
         <div className="status">
           <i /> system ready

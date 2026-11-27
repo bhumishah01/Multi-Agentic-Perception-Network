@@ -19,14 +19,14 @@ def main():
  rows=json.loads((RUN/"observations.json").read_text());groups=defaultdict(list)
  for row in rows:groups[(row["camera_id"],row["local_track_id"])].append(row)
  for items in groups.values():items.sort(key=lambda row:row["store_ts"])
- # The first track is a declared demo anchor. Every downstream track is selected
+ # The first track is a declared validation anchor. Every downstream track is selected
  # autonomously by ranking all candidates in the next configured camera.
  weights={"appearance":.45,"temporal":.20,"spatial":.15,"topology":.10,"exclusivity":.10}
  policy=HandoffPolicy(weights=weights)
  matcher=TrackMatcher(rows,RUN,policy)
  targets=[("CAM-01","T-0003")];rankings=[]
  for camera in ("CAM-02","CAM-03","CAM-04"):
-  # The validation reels are independent generated clips rather than a shared
+  # The validation reels are independent source clips rather than a shared
   # clock. Rank appearance/spatial candidates for demonstration, but never
   # promote the resulting cross-reel link beyond human review.
   ranked=matcher.rank(targets[-1],camera,max_transit_s=120,min_reverse_s=-120)
@@ -49,7 +49,7 @@ def main():
  for index in range(3):
   left,right=selected[index],selected[index+1];result=rankings[index][0]
   components=result["components"];score=result["decision"]["score"];state=result["decision"]["state"]
-  state="ambiguous"  # separate generated clips: never silently merge
+  state="ambiguous"  # independent clips: never silently merge
   request=msg("handoff.request","handoff-agent",left[-1]["store_ts"],
    observed={"source_camera":targets[index][0],"source_track":targets[index][1]},
    inferred={"candidate_camera":targets[index+1][0]},assumptions=["configured sequential topology"],

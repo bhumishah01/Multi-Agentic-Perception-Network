@@ -101,7 +101,7 @@ def get_media_catalog(role=Depends(role_guard("view_cases"))):return media_catal
 @app.get("/api/state")
 def state(role=Depends(role_guard("view_cases"))):
  data=scenario();summary=load_json(OUTPUT/"summary.json",{})
- return {"mode":CONFIG.mode,"timeline_label":"COMPOSED VALIDATION — source clips preserved","role":role,"media":media_catalog(),
+ return {"mode":CONFIG.mode,"timeline_label":"CONTROLLED MULTI-CAMERA REPLAY — source clips preserved","role":role,"media":media_catalog(),
          "clock":CLOCK.__dict__,"cameras":[{**camera.model_dump(mode="json"),"agent_state":AGENT_STATES[f'camera-agent:{camera.id}']} for camera in CONFIG.cameras],
          "summary":summary,"entities":data["entities"],"handoffs":data["handoffs"],"cases":data["cases"],"messages":data["messages"][-200:],
          "human_decisions":STORE.all(),"downstream_confidence":"degraded" if any(x!="running" for x in AGENT_STATES.values()) else "normal"}
