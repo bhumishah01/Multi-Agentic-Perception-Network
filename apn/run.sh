@@ -48,4 +48,10 @@ echo
 echo "APN ready: http://127.0.0.1:8766"
 echo "Local token: $APN_TOKEN"
 echo "COMPOSED TIMELINE — clips aligned manually"
+EXISTING_PID="$(lsof -tiTCP:8766 -sTCP:LISTEN 2>/dev/null || true)"
+if [[ -n "$EXISTING_PID" ]] && ps -p "$EXISTING_PID" -o command= | grep -q "uvicorn apn.api.main:app"; then
+  echo "[APN] replacing stale local APN process on port 8766"
+  kill "$EXISTING_PID"
+  sleep 1
+fi
 exec "$PYTHON" -m uvicorn apn.api.main:app --host 127.0.0.1 --port 8766
