@@ -44,7 +44,8 @@ type MediaCatalog = {
   assigned_files: number;
   unassigned_files: number;
   disclosure: string;
-  clips: { clip_id:string; filename:string; camera_id:string|null; duration_s:number }[];
+  source_connected: boolean;
+  clips: { clip_id:string; filename:string; camera_id:string|null; duration_s:number; available:boolean }[];
   reels: { camera_id: string; name: string; duration_s: number; clip_count: number; segments: any[] }[];
 };
 type AskResult = {
@@ -1352,6 +1353,12 @@ function OwnerDashboard({ onTechnical, onExit }: { onTechnical: () => void; onEx
   const [selectedFunnel, setSelectedFunnel] = useState("Stopped");
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   const [actionedAlerts, setActionedAlerts] = useState<string[]>([]);
+  const [ownerQuestion,setOwnerQuestion]=useState("How many customers were in aisle one?");
+  const [ownerAnswer,setOwnerAnswer]=useState<AskResult|null>(null);
+  const [ownerBusy,setOwnerBusy]=useState(false);
+  const [liveCamera,setLiveCamera]=useState("CAM-02");
+  const [liveAt,setLiveAt]=useState(10);
+  const [liveMetrics,setLiveMetrics]=useState<any>(null);
   const [theme, setTheme] = useState<"light" | "dark">(() => localStorage.getItem("apn-owner-theme") === "dark" ? "dark" : "light");
   const [toasts, setToasts] = useState<{id:number;title:string;detail:string;kind:string}[]>([]);
   const mediaCount = useRef(0);
@@ -1370,6 +1377,9 @@ function OwnerDashboard({ onTechnical, onExit }: { onTechnical: () => void; onEx
       mediaCount.current=media.discovered_files; setState(current=>current?{...current,media}:current);
     }).catch(()=>{}),5000); return()=>window.clearInterval(timer);
   },[]);
+  useEffect(()=>{const timer=window.setInterval(()=>setLiveAt(value=>value>=30?2:value+1),1000);return()=>window.clearInterval(timer)},[]);
+  useEffect(()=>{api(`/api/live/window?camera_id=${liveCamera}&at_s=${liveAt}&window_s=10`).then(setLiveMetrics).catch(()=>{})},[liveCamera,liveAt]);
+  const askOwner=async()=>{if(!ownerQuestion.trim())return;setOwnerBusy(true);setOwnerAnswer(null);try{setOwnerAnswer(await api("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:ownerQuestion,camera_id:liveCamera,at_s:liveAt,window_s:10})}))}finally{setOwnerBusy(false)}};
   const maxTraffic = Math.max(...(profile?.comparison || []).map((x: any) => x.local_tracks), 1);
   const prepareReport = (openPlanning = false) => {
     setReportStatus("Preparing report from the current evidence ledger…");
@@ -1432,6 +1442,7 @@ function OwnerDashboard({ onTechnical, onExit }: { onTechnical: () => void; onEx
       </aside>
       <section className="ownerContent">
         {activeAlerts.some(x => x.level === "now") && <div className="liveAlert"><span><i/> LIVE RECOMMENDATION</span><div><b>Customer may need assistance in Grocery Aisle 2</b><p>Three extended dwell signals were detected without visible staff engagement.</p></div><button onClick={() => { setActionedAlerts([...actionedAlerts,"assist"]); setDismissedAlerts([...dismissedAlerts,"assist"]); }}>Dispatch staff</button><button className="alertEvidence" onClick={() => setEvidence(evidenceItems[0])}>Evidence</button></div>}
+        <section className="ownerAsk"><header><div><small>ASK YOUR STORE · CURRENT EVIDENCE WINDOW</small><h2>Ask a question. Watch APN investigate.</h2></div><span><i/> {liveMetrics?.source||"Connecting to evidence ledger"}</span></header><div className="liveEvidenceBar"><label>Evidence zone<select value={liveCamera} onChange={e=>setLiveCamera(e.target.value)}>{state?.cameras?.map(camera=><option key={camera.id} value={camera.id}>{camera.id} · {camera.name}</option>)}</select></label><span><small>REPLAY TIME</small><b>{liveAt}s</b></span><span><small>OBSERVATIONS · LAST 10S</small><b>{liveMetrics?.observations??"—"}</b></span><span><small>VISIBLE TRACKS</small><b>{liveMetrics?.local_tracks??"—"}</b></span><span><small>PEAK OCCUPANCY</small><b>{liveMetrics?.peak_occupancy??"—"}</b></span></div><form onSubmit={e=>{e.preventDefault();askOwner()}}><input aria-label="Ask your store" value={ownerQuestion} onChange={e=>setOwnerQuestion(e.target.value)} placeholder="Ask about an aisle, count, queue, movement or bottleneck…"/><button disabled={ownerBusy}>{ownerBusy?"Agents investigating…":"Ask APN →"}</button></form>{ownerAnswer&&<div className="ownerAnswer"><div><small>VERIFIED ANSWER · {ownerAnswer.facts.camera_id||"ALL ZONES"}</small><p>{ownerAnswer.answer}</p></div><aside><b>{ownerAnswer.agents.length} agents consulted</b><span>{ownerAnswer.agents.join(" → ")}</span><em>{ownerAnswer.boundary}</em></aside></div>}</section>
         <div className="decisionHorizon"><article className="now"><small>NOW</small><b>Support Grocery Aisle</b><p>Repeated hesitation is visible in the current replay.</p></article><article><small>NEXT SHIFT</small><b>Prepare checkout capacity</b><p>Use the queue trigger before opening another counter.</p></article><article><small>LEARN</small><b>Run one controlled placement test</b><p>Compare ease, congestion and abandonment—not assumptions.</p></article></div>
         {section === "overview" && <>
           <header className="ownerPageHead"><div><small>01 · EXECUTIVE BRIEF · UPDATED JUST NOW</small><h1>Your store, in one decision-ready view</h1><p>The current replay supports a checkout-pressure review. Forecast panels below are clearly marked planning scenarios.</p></div><button onClick={() => prepareReport(true)}>Generate owner brief</button></header>
@@ -1521,15 +1532,9 @@ function App() {
     [cameraId, setCameraId] = useState("CAM-02"),
     [sourceClipId, setSourceClipId] = useState<string | null>(null),
     [privacy, setPrivacy] = useState(true),
-    [query, setQuery] = useState(
-      "Why did checkout pressure increase and what should we do?",
-    ),
-    [result, setResult] = useState<AskResult | null>(null),
-    [phase, setPhase] = useState(0),
-    [deep, setDeep] = useState(false),
+    [techView,setTechView]=useState<"evidence"|"agents"|"lab">("evidence"),
     [error, setError] = useState(""),
-    [time, setTime] = useState(0),
-    timer = useRef<number | undefined>(undefined);
+    [time, setTime] = useState(0);
   useEffect(() => {
     Promise.all([api("/api/state"), api("/api/observations")])
       .then(([s, o]) => {
@@ -1544,29 +1549,6 @@ function App() {
       () => observations.filter((row) => row.camera_id === cameraId),
       [observations, cameraId],
     );
-  const run = async () => {
-    if (!query.trim()) return;
-    window.clearInterval(timer.current);
-    setPhase(1);
-    setResult(null);
-    try {
-      const response = (await api("/api/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: query }),
-      })) as AskResult;
-      setResult(response);
-      let step = 1;
-      timer.current = window.setInterval(() => {
-        step++;
-        setPhase(step);
-        if (step >= response.agents.length + 2)
-          window.clearInterval(timer.current);
-      }, 650);
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
   if (error)
     return (
       <main className="boot">
@@ -1607,6 +1589,8 @@ function App() {
         </p>
         <a href="#store-overview">Start with the store overview ↓</a>
       </section>
+      <nav className="techSections"><button className={techView==="evidence"?"active":""} onClick={()=>setTechView("evidence")}><b>Evidence</b><small>Feeds, detections & provenance</small></button><button className={techView==="agents"?"active":""} onClick={()=>setTechView("agents")}><b>Agent validation</b><small>Delegation, reasoning & verification</small></button><button className={techView==="lab"?"active":""} onClick={()=>setTechView("lab")}><b>Model laboratory</b><small>Heatmaps, robustness & incidents</small></button></nav>
+      {techView === "evidence" && <>
       <StoreOverview
         state={state}
         observations={observations}
@@ -1614,7 +1598,7 @@ function App() {
         onSelect={(id)=>{setCameraId(id);setSourceClipId(null)}}
       />
       <MediaProvenance catalog={state.media} />
-      <section className="workspace" id="workspace">
+      <section className="workspace evidenceWorkspace" id="workspace">
         <div className="videoColumn">
           <div className="sectionTitle">
             <div>
@@ -1644,8 +1628,8 @@ function App() {
               </button>
             ))}
           </div>
-          <div className="sourceFeedHeader"><div><small>ALL DISCOVERED SURVEILLANCE</small><b>{state.media.clips.length} source feeds available</b></div><span>Choose any clip · grouped analysis remains by camera role</span></div>
-          <div className="sourceFeedGrid">{state.media.clips.map((clip,index)=><button key={clip.clip_id} className={sourceClipId===clip.clip_id?"selected":""} onClick={()=>{setSourceClipId(clip.clip_id);if(clip.camera_id)setCameraId(clip.camera_id)}}><i>{String(index+1).padStart(2,"0")}</i><span><b>{clip.filename}</b><small>{clip.camera_id||"Unassigned"}</small></span></button>)}</div>
+          <div className="sourceFeedHeader"><div><small>ALL DISCOVERED SURVEILLANCE</small><b>{state.media.clips.length} indexed source feeds</b></div><span className={state.media.source_connected?"driveOnline":"driveOffline"}>{state.media.source_connected?"External drive connected · choose any clip":"External drive disconnected · reconnect One Touch to play source files"}</span></div>
+          <div className="sourceFeedGrid">{state.media.clips.map((clip,index)=><button disabled={!clip.available} key={clip.clip_id} className={`${sourceClipId===clip.clip_id?"selected":""} ${!clip.available?"unavailable":""}`} onClick={()=>{setSourceClipId(clip.clip_id);if(clip.camera_id)setCameraId(clip.camera_id)}}><i>{String(index+1).padStart(2,"0")}</i><span><b>{clip.filename}</b><small>{clip.available?(clip.camera_id||"Unassigned"):"Drive unavailable"}</small></span></button>)}</div>
           <Surveillance
             key={`${camera.id}-${sourceClipId||"reel"}`}
             camera={camera}
@@ -1667,83 +1651,10 @@ function App() {
           </div>
           <CameraEvidenceLayer camera={camera} observations={cameraRows} />
         </div>
-        <div className="intelligence">
-          <div className="sectionTitle">
-            <div>
-              <small>03 · AGENTIC INVESTIGATION</small>
-              <h2>Ask the master orchestrator</h2>
-            </div>
-            <span className="livePulse">
-              <i /> agents online
-            </span>
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              run();
-            }}
-            className="prompt"
-          >
-            <textarea
-              aria-label="Ask the orchestrator"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ask about an aisle, movement, customer count, queue or bottleneck…"
-            />
-            <button type="submit">
-              Investigate <span>→</span>
-            </button>
-          </form>
-          <div className="suggestions">
-            {[
-              "How many customers were in aisle one?",
-              "Analyse the checkout bottleneck",
-              "Show movement across the store",
-            ].map((x) => (
-              <button key={x} onClick={() => setQuery(x)}>
-                {x}
-              </button>
-            ))}
-          </div>
-          <AgentFlow phase={phase} result={result} />
-          {result && phase >= result.agents.length + 2 ? (
-            <Answer
-              result={result}
-              onExplore={() => {
-                setDeep(true);
-                setTimeout(
-                  () =>
-                    document
-                      .getElementById("decision-studio")
-                      ?.scrollIntoView({ behavior: "smooth" }),
-                  100,
-                );
-              }}
-            />
-          ) : phase > 0 ? (
-            <div className="thinking">
-              <span />
-              <p>
-                {phase === 1
-                  ? "Orchestrator is reading your intent…"
-                  : "Agents are exchanging evidence…"}
-              </p>
-            </div>
-          ) : (
-            <div className="emptyState">
-              <b>Your investigation will unfold here</b>
-              <p>
-                Submit a question to see the orchestrator choose agents,
-                delegate work, verify evidence and return one clear answer.
-              </p>
-            </div>
-          )}
-        </div>
       </section>
-      <InvestigationTheatre />
-      <BusinessIntelligence />
-      <DeepAnalysis cameraId={cameraId} />
-      <SystemLaboratory />
+      </>}
+      {techView === "agents" && <InvestigationTheatre />}
+      {techView === "lab" && <><DeepAnalysis cameraId={cameraId} /><SystemLaboratory /></>}
       <footer>
         <span>
           <i className="boxIcon" /> detection & tracking

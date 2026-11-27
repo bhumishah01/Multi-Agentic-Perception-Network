@@ -77,7 +77,9 @@ def media_catalog():
     present={(name,media_signature(MEDIA_SOURCE/name))for name,_,_ in snapshot}
     if known!=present:sync_supermarket_media(MEDIA_SOURCE,ROOT)
   finally:MEDIA_LOCK.release()
- return load_json(MEDIA_CATALOG,{"clips":[],"reels":[],"discovered_files":0,"assigned_files":0,"unassigned_files":0})
+ catalog=load_json(MEDIA_CATALOG,{"clips":[],"reels":[],"discovered_files":0,"assigned_files":0,"unassigned_files":0})
+ connected=MEDIA_SOURCE.is_dir()
+ return {**catalog,"source_connected":connected,"clips":[{**clip,"available":connected and Path(clip.get("source_path","")).is_file()}for clip in catalog.get("clips",[])]}
 
 
 app=FastAPI(title="Agentic Perception Network",version="0.9.0",description="Local-only APN control and evidence API")
@@ -198,12 +200,17 @@ def privacy_purge(retention_hours:float=24,role=Depends(role_guard("manage_agent
  STORE.add("privacy",None,"retention_purge",json.dumps(audit[0]),role)
  return {"removed":removed,"retention_hours":retention_hours,"audited":True}
 
-class AskRequest(BaseModel):question:str
+class AskRequest(BaseModel):
+ question:str
+ camera_id:str|None=None
+ at_s:float|None=None
+ window_s:float=10.0
 @app.post("/api/ask")
 def ask(body:AskRequest,role=Depends(role_guard("view_cases"))):
  data=scenario();question=body.question.lower();rows=observations();case_item=data["cases"][0] if data["cases"] else None
- camera="CAM-02" if any(word in question for word in ("aisle","aisle one","main aisle")) else "CAM-04" if any(word in question for word in ("checkout","queue","bottleneck")) else None
+ camera=body.camera_id or ("CAM-02" if any(word in question for word in ("aisle","aisle one","main aisle")) else "CAM-04" if any(word in question for word in ("checkout","queue","bottleneck")) else None)
  selected=[row for row in rows if not camera or row["camera_id"]==camera]
+ if body.at_s is not None:selected=[row for row in selected if max(0,body.at_s-body.window_s)<=row["ts_source"]<=body.at_s]
  tracks:dict[str,list[dict]]={}
  frames:dict[int,set[str]]={}
  for row in selected:
@@ -236,7 +243,15 @@ def ask(body:AskRequest,role=Depends(role_guard("view_cases"))):
  return {"answer":answer,"facts":{"camera_id":camera,"local_tracks":unique,"observations":len(selected),"peak_occupancy":peak,"median_track_s":median_span,
           "longest_track_s":longest_span,"rightward":right,"leftward":left,"stable":stable,"risk":risk,"case":case_item["case_id"] if case_item else None},
          "insights":insights,"recommendation":recommendation,
-         "agents":agents,"trace":case_item["trace"] if case_item else [],"generated":False,"boundary":"Local tracks may split or repeat across cameras; no biometric identification is used."}
+         "agents":agents,"trace":case_item["trace"] if case_item else [],"generated":False,"evidence_window":{"camera_id":camera,"end_s":body.at_s,"window_s":body.window_s},"boundary":"Local tracks may split or repeat across cameras; no biometric identification is used."}
+
+@app.get("/api/live/window")
+def live_window(camera_id:str="CAM-02",at_s:float=10.0,window_s:float=10.0,role=Depends(role_guard("view_cases"))):
+ rows=[x for x in observations()if x["camera_id"]==camera_id and max(0,at_s-window_s)<=x["ts_source"]<=at_s]
+ tracks={x["local_track_id"]for x in rows};frames:dict[int,set[str]]={}
+ for row in rows:frames.setdefault(row["frame_idx"],set()).add(row["local_track_id"])
+ zones={x.get("zone")for x in rows if x.get("zone")}
+ return {"camera_id":camera_id,"at_s":round(at_s,1),"window_s":window_s,"observations":len(rows),"local_tracks":len(tracks),"peak_occupancy":max((len(x)for x in frames.values()),default=0),"zones":sorted(zones),"source":"processed observation ledger"}
 
 @app.post("/api/replay/{action}")
 def replay(action:str,value:float|None=None,role=Depends(role_guard("view_cases"))):

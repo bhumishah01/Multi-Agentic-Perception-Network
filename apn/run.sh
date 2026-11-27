@@ -18,7 +18,11 @@ PREVIOUS_MEDIA=""
 if [[ -f output/phase2_yolo/media_fingerprint.txt ]]; then
   PREVIOUS_MEDIA="$(tr -d '\n' < output/phase2_yolo/media_fingerprint.txt)"
 fi
-"$PYTHON" tools/sync_supermarket_media.py
+if [[ -d "/Volumes/One Touch/SURVELLIANCE /SUPERMARKET FINAL" ]]; then
+  "$PYTHON" tools/sync_supermarket_media.py
+else
+  echo "[APN] external surveillance drive is disconnected — using cached camera reels"
+fi
 CURRENT_MEDIA="$(tr -d '\n' < data/supermarket_final/fingerprint.txt)"
 
 if [[ ! -f output/phase2_yolo/summary.json || "$PREVIOUS_MEDIA" != "$CURRENT_MEDIA" ]]; then
